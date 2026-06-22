@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioShield - Plant Disease Detection System</title>
+    <meta name="description" content="Identify plant diseases instantly from leaf images using a trained Convolutional Neural Network (CNN).">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="leaf-icon">
+                    <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 3.58 1 9.2a7.1 7.1 0 0 1-9 8.8Z"></path>
+                    <path d="M19 2c-2.26 4.33-5.27 7.14-8 10"></path>
+                </svg>
+                <h1>BioShield <span class="badge">AI</span></h1>
+            </div>
+            <p class="subtitle">Deep Learning Plant Pathology & Care Advisor</p>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="app-main">
+            <!-- Left Side: Upload & Operations -->
+            <section class="upload-section">
+                <div class="card glass">
+                    <div class="card-header">
+                        <h2>Upload Leaf Image</h2>
+                        <p>Select or drag a leaf photograph to analyze its health status.</p>
+                    </div>
+                    
+                    <!-- Upload Drop Zone -->
+                    <div class="upload-zone" id="drop-zone">
+                        <input type="file" id="file-input" accept="image/*" class="file-hidden">
+                        <div class="upload-prompt">
+                            <div class="upload-icon-wrapper">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                            </div>
+                            <h3>Drag & Drop Leaf Image</h3>
+                            <p>or <span class="browse-btn">Browse Files</span></p>
+                            <span class="file-limits">Supports JPEG, PNG, WEBP (Max 16MB)</span>
+                        </div>
+                        <div class="preview-container hidden" id="preview-container">
+                            <img src="" alt="Selected leaf preview" id="image-preview">
+                            <button class="remove-btn" id="remove-btn" title="Remove image">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <button class="btn btn-primary btn-full hidden" id="analyze-btn">
+                        <span>Analyze Leaf Health</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
+                    </button>
+
+                    <!-- Error Alert -->
+                    <div class="alert alert-danger hidden" id="error-alert">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="alert-icon">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <div class="alert-message">
+                            <strong id="error-title">Error:</strong>
+                            <p id="error-text">Message goes here</p>
+                        </div>
+                    </div>
+
+                    <!-- Model Instruction Note (If not trained) -->
+                    <div class="info-note" id="training-note">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        <p>Ensure you have trained the model using <code>python train.py</code> before analyzing images.</p>
+                    </div>
+                </div>
+
+                <!-- Quick Test Library -->
+                <div class="card glass sample-card">
+                    <div class="card-header">
+                        <h2>Sample Gallery</h2>
+                        <p>No leaf photos? Click any synthetic test image below to evaluate the system.</p>
+                    </div>
+                    <div class="samples-grid">
+                        <button class="sample-btn" data-class="Tomato___Early_blight" title="Tomato Early Blight">
+                            <div class="sample-thumbnail tomato-eb"></div>
+                            <span>Tomato (Blight)</span>
+                        </button>
+                        <button class="sample-btn" data-class="Apple___Black_rot" title="Apple Black Rot">
+                            <div class="sample-thumbnail apple-br"></div>
+                            <span>Apple (Rot)</span>
+                        </button>
+                        <button class="sample-btn" data-class="Corn___Common_rust" title="Corn Common Rust">
+                            <div class="sample-thumbnail corn-cr"></div>
+                            <span>Corn (Rust)</span>
+                        </button>
+                        <button class="sample-btn" data-class="Potato___healthy" title="Potato Healthy">
+                            <div class="sample-thumbnail potato-h"></div>
+                            <span>Potato (Healthy)</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Side: Analysis Results Dashboard -->
+            <section class="results-section" id="results-section">
+                <!-- Fallback / Empty State -->
+                <div class="empty-state" id="empty-state">
+                    <div class="empty-icon-wrapper">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2v20"></path>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                    </div>
+                    <h2>Diagnosis Dashboard</h2>
+                    <p>Awaiting leaf input. Upload an image or select a sample from the gallery on the left to initialize the neural network diagnosis and treatment planner.</p>
+                </div>
+
+                <!-- Analysis Loader (Active during analysis) -->
+                <div class="analysis-loader hidden" id="analysis-loader">
+                    <div class="pulse-ring"></div>
+                    <div class="loader-spinner">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spinning-leaf">
+                            <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 3.58 1 9.2a7.1 7.1 0 0 1-9 8.8Z"></path>
+                        </svg>
+                    </div>
+                    <h3>Running CNN Diagnosis...</h3>
+                    <p class="loader-status" id="loader-status">Pre-processing matrices...</p>
+                </div>
+
+                <!-- Result Content -->
+                <div class="result-container hidden" id="result-container">
+                    <div class="card glass result-card">
+                        <!-- Card Header details -->
+                        <div class="result-header">
+                            <div class="disease-meta">
+                                <span class="plant-type-badge" id="res-plant-name">TOMATO</span>
+                                <h2 class="disease-title" id="res-disease-name">Early Blight</h2>
+                            </div>
+                            
+                            <!-- Radial Confidence Gauge -->
+                            <div class="confidence-gauge">
+                                <svg class="gauge-ring" width="80" height="80">
+                                    <circle class="gauge-ring-bg" cx="40" cy="40" r="34" stroke-width="6" fill="transparent"/>
+                                    <circle class="gauge-ring-fill" id="res-confidence-ring" cx="40" cy="40" r="34" stroke-width="6" fill="transparent" stroke-dasharray="213.6" stroke-dashoffset="213.6"/>
+                                </svg>
+                                <div class="gauge-val">
+                                    <span id="res-confidence-value">0%</span>
+                                    <span class="gauge-label">Match</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Result Visual Layout -->
+                        <div class="result-body-grid">
+                            <!-- Left: Scanned Image and Status -->
+                            <div class="result-scan-column">
+                                <div class="scan-wrapper">
+                                    <img src="" alt="Analyzed Leaf Scan" id="res-image-url">
+                                    <div class="scan-overlay">
+                                        <div class="corner top-left"></div>
+                                        <div class="corner top-right"></div>
+                                        <div class="corner bottom-left"></div>
+                                        <div class="corner bottom-right"></div>
+                                        <div class="scan-laser"></div>
+                                    </div>
+                                </div>
+                                <div class="scan-status-pill healthy" id="res-health-status">
+                                    <span class="status-indicator"></span>
+                                    <span id="res-health-text">Diseased</span>
+                                </div>
+                            </div>
+
+                            <!-- Right: Detailed Information Tabs -->
+                            <div class="result-info-column">
+                                <nav class="info-tabs">
+                                    <button class="tab-link active" data-tab="tab-symptoms">Symptoms</button>
+                                    <button class="tab-link" data-tab="tab-causes">Causes</button>
+                                    <button class="tab-link" data-tab="tab-prevention">Prevention</button>
+                                    <button class="tab-link" data-tab="tab-treatment">Treatment</button>
+                                </nav>
+
+                                <div class="tab-view active" id="tab-symptoms">
+                                    <ul class="info-list" id="res-symptoms-list">
+                                        <!-- Will be dynamically populated -->
+                                    </ul>
+                                </div>
+                                <div class="tab-view" id="tab-causes">
+                                    <ul class="info-list" id="res-causes-list">
+                                        <!-- Will be dynamically populated -->
+                                    </ul>
+                                </div>
+                                <div class="tab-view" id="tab-prevention">
+                                    <ul class="info-list" id="res-prevention-list">
+                                        <!-- Will be dynamically populated -->
+                                    </ul>
+                                </div>
+                                <div class="tab-view" id="tab-treatment">
+                                    <ul class="info-list" id="res-treatment-list">
+                                        <!-- Will be dynamically populated -->
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>&copy; 2026 BioShield AI. All rights reserved. Powered by Python, Flask, and TensorFlow.</p>
+        </footer>
+    </div>
+
+    <!-- JS Files -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

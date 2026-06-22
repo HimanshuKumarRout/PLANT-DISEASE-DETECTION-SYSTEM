@@ -1,0 +1,164 @@
+import os
+import uuid
+import random
+import shutil
+from flask import Flask, request, jsonify, render_template, url_for
+from src.model_utils import predict_disease
+from src.disease_info import DISEASE
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+    static_folder=os.path.join(BASE_DIR, "static")
+)
+
+# Configure upload folder
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+# Limit uploads to 16MB
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+
+# Allowed image extensions
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+
+def allowed_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route("/")
+def index():
+    """Renders the dashboard homepage."""
+    return render_template("index.html")
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    """API endpoint to upload a leaf image and get predictions."""
+    if "file" not in request.files:
+        return jsonify({"success": False, "error": "No file uploaded"}), 400
+        
+    file = request.files["file"]
+    
+    if file.filename == "":
+        return jsonify({"success": False, "error": "No selected file"}), 400
+        
+    if not allowed_file(file.filename):
+        return jsonify({"success": False, "error": f"Invalid file type. Supported types: {', '.join(ALLOWED_EXTENSIONS)}"}), 400
+        
+    try:
+        # Save file with a secure, unique filename to avoid overwrites
+        file_ext = file.filename.rsplit(".", 1)[1].lower()
+        unique_filename = f"{uuid.uuid4().hex}.{file_ext}"
+        filepath = os.path.join(app.config["UPLOAD_FOLDER"], unique_filename)
+        file.save(filepath)
+        
+        # Run prediction
+        try:
+            class_name, confidence = predict_disease(filepath)
+        except FileNotFoundError as e:
+            # Model not trained yet
+            return jsonify({
+                "success": False, 
+                "error": "The deep learning model has not been trained yet. Please run 'python train.py' to generate the model before using the web app."
+            }), 503
+            
+        # Retrieve information for the predicted disease
+        info = DISEASE.get(class_name)
+        if not info:
+            info = {
+                "plant_name": class_name.split("___")[0].replace("_", " "),
+                "disease_name": class_name.split("___")[1].replace("_", " "),
+                "symptoms": ["Information not available in knowledge base."],
+                "causes": ["N/A"],
+                "prevention": ["N/A"],
+                "treatment": ["N/A"]
+            }
+            
+        # Get relative path for image display
+        image_url = url_for("static", filename=f"uploads/{unique_filename}")
+        
+        return jsonify({
+            "success": True,
+            "plant_name": info["plant_name"],
+            "disease_name": info["disease_name"],
+            "confidence": round(confidence * 100, 2), # percentage
+            "symptoms": info["symptoms"],
+            "causes": info["causes"],
+            "prevention": info["prevention"],
+            "treatment": info["treatment"],
+            "image_url": image_url
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": f"An error occurred: {str(e)}"}), 500
+
+@app.route("/predict_sample", methods=["GET"])
+def predict_sample():
+    """API endpoint to predict on a pre-generated synthetic sample image."""
+    class_name = request.args.get("class_name")
+    if not class_name:
+        return jsonify({"success": False, "error": "No class name provided"}), 400
+        
+    validation_class_dir = os.path.join(BASE_DIR, "dataset", "validation", class_name)
+    if not os.path.exists(validation_class_dir):
+        return jsonify({
+            "success": False, 
+            "error": f"Sample dataset not found for '{class_name}'. Please run 'python train.py' to generate the training data first."
+        }), 404
+        
+    # Get all images in the validation directory for this class
+    images = [img for img in os.listdir(validation_class_dir) if allowed_file(img)]
+    if not images:
+        return jsonify({"success": False, "error": f"No sample images found in validation directory for {class_name}"}), 404
+        
+    # Pick a random sample image from the class
+    selected_img = random.choice(images)
+    src_path = os.path.join(validation_class_dir, selected_img)
+    
+    # Copy to uploads folder with a unique name
+    unique_filename = f"sample_{uuid.uuid4().hex}.png"
+    dest_path = os.path.join(app.config["UPLOAD_FOLDER"], unique_filename)
+    
+    try:
+        shutil.copy(src_path, dest_path)
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Failed to process sample image: {str(e)}"}), 500
+        
+    # Run prediction
+    try:
+        predicted_class, confidence = predict_disease(dest_path)
+    except FileNotFoundError as e:
+        return jsonify({
+            "success": False, 
+            "error": "The deep learning model has not been trained yet. Please run 'python train.py' to generate the model before using the web app."
+        }), 503
+        
+    # Retrieve information for the predicted disease
+    info = DISEASE.get(predicted_class)
+    if not info:
+        info = {
+            "plant_name": predicted_class.split("___")[0].replace("_", " "),
+            "disease_name": predicted_class.split("___")[1].replace("_", " "),
+            "symptoms": ["Information not available in knowledge base."],
+            "causes": ["N/A"],
+            "prevention": ["N/A"],
+            "treatment": ["N/A"]
+        }
+        
+    image_url = url_for("static", filename=f"uploads/{unique_filename}")
+    
+    return jsonify({
+        "success": True,
+        "plant_name": info["plant_name"],
+        "disease_name": info["disease_name"],
+        "confidence": round(confidence * 100, 2), # percentage
+        "symptoms": info["symptoms"],
+        "causes": info["causes"],
+        "prevention": info["prevention"],
+        "treatment": info["treatment"],
+        "image_url": image_url
+    })
+
+if __name__ == "__main__":
+    app.run(debug=True, host="127.0.0.1", port=5000)
