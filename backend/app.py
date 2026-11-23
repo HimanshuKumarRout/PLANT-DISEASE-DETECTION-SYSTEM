@@ -2,20 +2,30 @@ import os
 import uuid
 import random
 import shutil
-from flask import Flask, request, jsonify, render_template, url_for
+from flask import Flask, request, jsonify, send_from_directory
 from src.model_utils import predict_disease
 from src.disease_info import DISEASE
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-app = Flask(
-    __name__,
-    template_folder=os.path.join(BASE_DIR, "templates"),
-    static_folder=os.path.join(BASE_DIR, "static")
-)
+app = Flask(__name__)
 
-# Configure upload folder
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
+# Enable CORS for cross-origin requests from React frontend
+try:
+    from flask_cors import CORS
+    CORS(app, resources={r"/*": {"origins": "*"}})
+except ImportError:
+    pass
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
+
+# Configure uploads directory
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 # Limit uploads to 16MB
@@ -27,14 +37,36 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@app.route("/")
-def index():
-    """Renders the dashboard homepage."""
-    return render_template("index.html")
+@app.route("/", methods=["GET"])
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    """Health check endpoint to verify backend status."""
+    return jsonify({
+        "status": "healthy",
+        "service": "BioShield AI Plant Disease Detection Backend",
+        "version": "2.0.0"
+    })
 
-@app.route("/predict", methods=["POST"])
+@app.route("/api/diseases", methods=["GET"])
+def list_diseases():
+    """Returns the full knowledge base of supported plant diseases."""
+    return jsonify({
+        "success": True,
+        "count": len(DISEASE),
+        "diseases": DISEASE
+    })
+
+@app.route("/uploads/<path:filename>", methods=["GET"])
+def serve_upload(filename):
+    """Serves uploaded leaf images."""
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
+@app.route("/predict", methods=["POST", "OPTIONS"])
 def predict():
     """API endpoint to upload a leaf image and get predictions."""
+    if request.method == "OPTIONS":
+        return "", 200
+
     if "file" not in request.files:
         return jsonify({"success": False, "error": "No file uploaded"}), 400
         
@@ -60,7 +92,7 @@ def predict():
             # Model not trained yet
             return jsonify({
                 "success": False, 
-                "error": "The deep learning model has not been trained yet. Please run 'python train.py' to generate the model before using the web app."
+                "error": "The deep learning model has not been trained yet. Please run 'python src/train.py' to generate the model before using the web app."
             }), 503
             
         # Retrieve information for the predicted disease
@@ -75,8 +107,7 @@ def predict():
                 "treatment": ["N/A"]
             }
             
-        # Get relative path for image display
-        image_url = url_for("static", filename=f"uploads/{unique_filename}")
+        image_url = f"/uploads/{unique_filename}"
         
         return jsonify({
             "success": True,
@@ -95,7 +126,7 @@ def predict():
 
 @app.route("/predict_sample", methods=["GET"])
 def predict_sample():
-    """API endpoint to predict on a pre-generated synthetic sample image."""
+    """API endpoint to predict on a pre-generated sample image."""
     class_name = request.args.get("class_name")
     if not class_name:
         return jsonify({"success": False, "error": "No class name provided"}), 400
@@ -104,7 +135,7 @@ def predict_sample():
     if not os.path.exists(validation_class_dir):
         return jsonify({
             "success": False, 
-            "error": f"Sample dataset not found for '{class_name}'. Please run 'python train.py' to generate the training data first."
+            "error": f"Sample dataset not found for '{class_name}'. Please ensure sample images exist in the dataset directory."
         }), 404
         
     # Get all images in the validation directory for this class
@@ -131,7 +162,7 @@ def predict_sample():
     except FileNotFoundError as e:
         return jsonify({
             "success": False, 
-            "error": "The deep learning model has not been trained yet. Please run 'python train.py' to generate the model before using the web app."
+            "error": "The deep learning model has not been trained yet. Please run 'python src/train.py' to generate the model before using the web app."
         }), 503
         
     # Retrieve information for the predicted disease
@@ -146,7 +177,7 @@ def predict_sample():
             "treatment": ["N/A"]
         }
         
-    image_url = url_for("static", filename=f"uploads/{unique_filename}")
+    image_url = f"/uploads/{unique_filename}"
     
     return jsonify({
         "success": True,
@@ -161,4 +192,5 @@ def predict_sample():
     })
 
 if __name__ == "__main__":
-    app.run(debug=True, host="127.0.0.1", port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host="0.0.0.0", port=port)

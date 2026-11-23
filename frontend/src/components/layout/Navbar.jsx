@@ -1,0 +1,59 @@
+import React from 'react';
+import { Link, NavLink } from 'react-router-dom';
+import { Leaf, Sparkles, Database, Layers } from 'lucide-react';
+import { ROUTES } from '../../routes';
+
+export default function Navbar({ backendStatus }) {
+  return (
+    <div className="navbar-wrapper">
+      <nav className="navbar">
+        {/* Brand */}
+        <Link to={ROUTES.HOME} className="nav-brand">
+          <div className="brand-icon-box">
+            <Leaf size={20} />
+          </div>
+          <div className="brand-text-wrap">
+            <span className="brand-title">BioShield</span>
+            <span className="brand-tag">PRO AI</span>
+          </div>
+        </Link>
+
+        {/* Navigation Tabs with Dynamic Routes */}
+        <div className="nav-links">
+          <NavLink
+            to={ROUTES.HOME}
+            end
+            className={({ isActive }) => `nav-link-btn ${isActive ? 'active' : ''}`}
+          >
+            <Sparkles size={16} />
+            <span>AI Diagnostic Lab</span>
+          </NavLink>
+
+          <NavLink
+            to={ROUTES.ENCYCLOPEDIA}
+            className={({ isActive }) => `nav-link-btn ${isActive ? 'active' : ''}`}
+          >
+            <Database size={16} />
+            <span>Disease Encyclopedia</span>
+          </NavLink>
+
+          <NavLink
+            to={ROUTES.ARCHITECTURE}
+            className={({ isActive }) => `nav-link-btn ${isActive ? 'active' : ''}`}
+          >
+            <Layers size={16} />
+            <span>Model Architecture</span>
+          </NavLink>
+        </div>
+
+        {/* Status Pill */}
+        <div className="nav-actions">
+          <div className="engine-status-pill" title="PyTorch CNN Backend Status">
+            <span className="status-dot" />
+            <span>{backendStatus === 'healthy' ? 'Neural Engine Online' : 'Connecting...'}</span>
+          </div>
+        </div>
+      </nav>
+    </div>
+  );
+}
