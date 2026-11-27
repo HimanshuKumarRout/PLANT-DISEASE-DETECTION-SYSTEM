@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ROUTES } from './paths';
-import DiagnosticLabPage from './DiagnosticLabPage';
-import EncyclopediaPage from './EncyclopediaPage';
-import ArchitecturePage from './ArchitecturePage';
+import { PageRouteSkeleton } from '../components/common/SkeletonLoader';
+
+const DiagnosticLabPage = lazy(() => import('./DiagnosticLabPage'));
+const EncyclopediaPage = lazy(() => import('./EncyclopediaPage'));
+const ArchitecturePage = lazy(() => import('./ArchitecturePage'));
 
 /**
  * AppRoutes Component
- * Maps URL routes to respective page components.
+ * Maps URL routes to lazy-loaded page components with tailored Skeleton fallbacks.
  */
 export default function AppRoutes({
   selectedFile,
@@ -27,18 +29,20 @@ export default function AppRoutes({
       <Route
         path={ROUTES.HOME}
         element={
-          <DiagnosticLabPage
-            selectedFile={selectedFile}
-            previewUrl={previewUrl}
-            onFileSelect={onFileSelect}
-            onRemoveFile={onRemoveFile}
-            onAnalyze={onAnalyze}
-            onSelectSample={onSelectSample}
-            isLoading={isLoading}
-            error={error}
-            result={result}
-            apiBase={apiBase}
-          />
+          <Suspense fallback={<PageRouteSkeleton variant="scanner" />}>
+            <DiagnosticLabPage
+              selectedFile={selectedFile}
+              previewUrl={previewUrl}
+              onFileSelect={onFileSelect}
+              onRemoveFile={onRemoveFile}
+              onAnalyze={onAnalyze}
+              onSelectSample={onSelectSample}
+              isLoading={isLoading}
+              error={error}
+              result={result}
+              apiBase={apiBase}
+            />
+          </Suspense>
         }
       />
 
@@ -48,13 +52,21 @@ export default function AppRoutes({
       {/* Disease Encyclopedia Route */}
       <Route
         path={ROUTES.ENCYCLOPEDIA}
-        element={<EncyclopediaPage apiBase={apiBase} />}
+        element={
+          <Suspense fallback={<PageRouteSkeleton variant="encyclopedia" />}>
+            <EncyclopediaPage apiBase={apiBase} />
+          </Suspense>
+        }
       />
 
       {/* Model Architecture Route */}
       <Route
         path={ROUTES.ARCHITECTURE}
-        element={<ArchitecturePage />}
+        element={
+          <Suspense fallback={<PageRouteSkeleton variant="architecture" />}>
+            <ArchitecturePage />
+          </Suspense>
+        }
       />
 
       {/* Fallback 404 / Catch-all redirects to Home */}

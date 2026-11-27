@@ -1,3 +1,11 @@
+// Common / UI Primitives
+export {
+  Skeleton,
+  DiagnosticResultSkeleton,
+  EncyclopediaSkeleton,
+  PageRouteSkeleton
+} from './common/SkeletonLoader';
+
 // Layout Components
 export { default as Navbar } from './layout/Navbar';
 export { default as HeroSection } from './layout/HeroSection';

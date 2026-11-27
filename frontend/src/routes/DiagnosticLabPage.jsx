@@ -1,5 +1,7 @@
 import React from 'react';
-import { UploadZone, SampleGallery, DiagnosticHub } from '../components';
+import UploadZone from '../components/scanner/UploadZone';
+import SampleGallery from '../components/scanner/SampleGallery';
+import DiagnosticHub from '../components/scanner/DiagnosticHub';
 
 /**
  * DiagnosticLabPage Route Component
@@ -43,6 +45,7 @@ export default function DiagnosticLabPage({
         <DiagnosticHub
           result={result}
           isLoading={isLoading}
+          error={error}
           apiBase={apiBase}
         />
       </section>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { DiseaseEncyclopedia } from '../components';
+import DiseaseEncyclopedia from '../components/views/DiseaseEncyclopedia';
 
 /**
  * EncyclopediaPage Route Component (/encyclopedia)

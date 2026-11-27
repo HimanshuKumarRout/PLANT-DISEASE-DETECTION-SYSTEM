@@ -116,6 +116,7 @@ PLANT DISEASE DETECTION SYSTEM/
 │   ├── src/
 │   │   ├── disease_info.py        # Pathology knowledge base (10 classes)
 │   │   ├── model_utils.py         # PyTorch CNN model architecture & preprocessing
+│   │   ├── plant_validator.py     # Multi-stage OpenCV botanical leaf specimen gatekeeper
 │   │   └── train.py               # Dataset generator & model training pipeline
 │   ├── uploads/                   # Temporary storage for analyzed leaf images
 │   ├── app.py                     # Flask REST API endpoints (/predict, /predict_sample, /api/diseases)
@@ -127,6 +128,8 @@ PLANT DISEASE DETECTION SYSTEM/
 │   ├── public/leaf.svg            # Botanical logo asset
 │   ├── src/
 │   │   ├── components/            # Grouped Feature Modules
+│   │   │   ├── common/            # Reusable UI primitives
+│   │   │   │   └── SkeletonLoader.jsx  # Shimmer skeleton loaders (Diagnostic, Encyclopedia, Routes)
 │   │   │   ├── layout/            # Top Navigation, Hero Metrics & Footer
 │   │   │   │   ├── Navbar.jsx
 │   │   │   │   ├── HeroSection.jsx

@@ -1,21 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Activity,
   Scan,
   ShieldCheck,
-  AlertTriangle,
-  FileText,
+  ShieldAlert,
   Copy,
-  Printer,
   CheckCircle2,
   Stethoscope,
   Bug,
-  Sparkles,
   Flame,
   FileDown
 } from 'lucide-react';
 import ReportModal from '../report/ReportModal';
 import OfficialPdfReport from '../report/OfficialPdfReport';
+import { Skeleton, DiagnosticResultSkeleton } from '../common/SkeletonLoader';
 
 const STATUS_PHRASES = [
   'Initializing neural layers & tensor weights...',
@@ -33,11 +31,19 @@ const TABS = [
   { id: 'treatment', label: 'Agronomic Treatment', icon: Flame }
 ];
 
-export default function DiagnosticHub({ result, isLoading, apiBase = '' }) {
+export default function DiagnosticHub({ result, isLoading, error = null, apiBase = '' }) {
   const [phraseIdx, setPhraseIdx] = useState(0);
   const [activeTab, setActiveTab] = useState('symptoms');
   const [copied, setCopied] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const scanImgRef = useRef(null);
+
+  const imageUrl = result?.image_url
+    ? result.image_url.startsWith('http')
+      ? result.image_url
+      : `${apiBase}${result.image_url}`
+    : '';
 
   // Cycle loader phrases
   useEffect(() => {
@@ -47,6 +53,15 @@ export default function DiagnosticHub({ result, isLoading, apiBase = '' }) {
     }, 600);
     return () => clearInterval(interval);
   }, [isLoading]);
+
+  // Reset image skeleton when specimen URL changes
+  useEffect(() => {
+    if (scanImgRef.current?.complete) {
+      setImgLoaded(true);
+    } else {
+      setImgLoaded(false);
+    }
+  }, [imageUrl]);
 
   // Handle report copy
   const handleCopyReport = () => {
@@ -70,38 +85,55 @@ ${(result.treatment || []).map((t) => `• ${t}`).join('\n')}
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  // 1. Loading State
+  // 1. Loading State with Full Diagnostic Skeleton Loader
   if (isLoading) {
     return (
       <div className="glass-panel diagnostic-hub-panel">
-        <div className="loading-hud-state">
-          <div className="cyber-reticle-box">
-            <div className="reticle-spin-ring" />
-            <div className="reticle-spin-reverse" />
-            <Scan size={36} className="reticle-core-icon" />
+        <DiagnosticResultSkeleton statusPhrase={STATUS_PHRASES[phraseIdx]} />
+      </div>
+    );
+  }
+
+  // 2. Invalid Picture / Prediction Blocked State
+  if (!result && error) {
+    const isInvalidPlant = error.code === 'NOT_A_PLANT_IMAGE';
+    return (
+      <div className="glass-panel diagnostic-hub-panel">
+        <div className="invalid-specimen-state" role="alert">
+          <div className="invalid-radar-wrapper">
+            <ShieldAlert size={42} />
           </div>
 
-          <h3 style={{ fontSize: '1.35rem', fontWeight: 800, marginBottom: '6px' }}>
-            Running Convolutional Inference
+          <span
+            className="severity-pill critical"
+            style={{ marginBottom: '12px' }}
+          >
+            <span className="status-dot" style={{ background: 'currentColor' }} />
+            <span>{isInvalidPlant ? 'Prediction Blocked • Not a Plant Pic' : 'Diagnostic Notice'}</span>
+          </span>
+
+          <h3 style={{ fontSize: '1.45rem', fontWeight: 800, marginBottom: '8px', color: '#fff1f2' }}>
+            {error.title || 'Not the Correct Pic'}
           </h3>
 
-          <div className="hud-progress-track">
-            <div className="hud-progress-fill" />
-          </div>
-
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', minHeight: '1.5em' }}>
-            {STATUS_PHRASES[phraseIdx]}
+          <p style={{ color: '#fecdd3', fontSize: '0.94rem', maxWidth: '470px', lineHeight: 1.6 }}>
+            {error.message}
           </p>
+
+          <div className="invalid-tips-box">
+            <h4>Upload Guidelines</h4>
+            <ul>
+              <li>Upload a clear close-up photo of an actual plant leaf specimen.</li>
+              <li>Do not upload portraits, animals, objects, documents, or UI screenshots.</li>
+              <li>Supported crop classes: Apple, Corn, Potato, and Tomato foliage.</li>
+            </ul>
+          </div>
         </div>
       </div>
     );
   }
 
-  // 2. Standby / Empty State
+  // 3. Standby / Empty State
   if (!result) {
     return (
       <div className="glass-panel diagnostic-hub-panel">
@@ -138,9 +170,6 @@ ${(result.treatment || []).map((t) => `• ${t}`).join('\n')}
 
   // 3. Result State
   const isHealthy = result.disease_name?.toLowerCase() === 'healthy';
-  const imageUrl = result.image_url?.startsWith('http')
-    ? result.image_url
-    : `${apiBase}${result.image_url}`;
 
   // Confidence calculations
   const circumference = 213.6; // 2 * Math.PI * 34
@@ -181,9 +210,19 @@ ${(result.treatment || []).map((t) => `• ${t}`).join('\n')}
         <div className="result-content-grid">
           {/* Left: Scan Preview and Gauge */}
           <div className="scan-visual-column">
-            {/* HUD Scan Frame */}
+            {/* HUD Scan Frame with Image Skeleton Placeholder */}
             <div className="hud-scan-frame">
-              <img src={imageUrl} alt={`${result.plant_name} ${result.disease_name}`} />
+              {!imgLoaded && (
+                <Skeleton width="100%" height="100%" className="hud-image-skeleton" />
+              )}
+              <img
+                ref={scanImgRef}
+                src={imageUrl}
+                alt={`${result.plant_name} ${result.disease_name}`}
+                onLoad={() => setImgLoaded(true)}
+                onError={() => setImgLoaded(true)}
+                style={{ opacity: imgLoaded ? 1 : 0, transition: 'opacity 0.35s ease' }}
+              />
               <div className="hud-corner hud-top-l" />
               <div className="hud-corner hud-top-r" />
               <div className="hud-corner hud-bot-l" />

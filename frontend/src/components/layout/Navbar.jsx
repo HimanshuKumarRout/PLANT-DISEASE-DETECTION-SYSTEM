@@ -1,9 +1,17 @@
 import React from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { Leaf, Sparkles, Database, Layers } from 'lucide-react';
-import { ROUTES } from '../../routes';
+import { ROUTES } from '../../routes/paths';
+import { Skeleton } from '../common/SkeletonLoader';
 
 export default function Navbar({ backendStatus }) {
+  const statusClass =
+    backendStatus === 'healthy'
+      ? 'online'
+      : backendStatus === 'offline'
+      ? 'offline'
+      : 'connecting';
+
   return (
     <div className="navbar-wrapper">
       <nav className="navbar">
@@ -48,9 +56,18 @@ export default function Navbar({ backendStatus }) {
 
         {/* Status Pill */}
         <div className="nav-actions">
-          <div className="engine-status-pill" title="PyTorch CNN Backend Status">
+          <div
+            className={`engine-status-pill ${statusClass}`}
+            title="PyTorch CNN Backend Status"
+          >
             <span className="status-dot" />
-            <span>{backendStatus === 'healthy' ? 'Neural Engine Online' : 'Connecting...'}</span>
+            {backendStatus === 'connecting' ? (
+              <Skeleton width={116} height={12} variant="pill" />
+            ) : (
+              <span>
+                {backendStatus === 'healthy' ? 'Neural Engine Online' : 'Backend Offline'}
+              </span>
+            )}
           </div>
         </div>
       </nav>

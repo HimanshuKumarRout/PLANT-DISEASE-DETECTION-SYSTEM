@@ -4,6 +4,7 @@ import random
 import shutil
 from flask import Flask, request, jsonify, send_from_directory
 from src.model_utils import predict_disease
+from src.plant_validator import validate_plant_image
 from src.disease_info import DISEASE
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -84,8 +85,23 @@ def predict():
         unique_filename = f"{uuid.uuid4().hex}.{file_ext}"
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], unique_filename)
         file.save(filepath)
-        
-        # Run prediction
+
+        # Gatekeeper: Verify the uploaded image is actually a plant/leaf before predicting
+        is_plant, validation_error, metrics = validate_plant_image(filepath)
+        if not is_plant:
+            try:
+                os.remove(filepath)
+            except OSError:
+                pass
+            return jsonify({
+                "success": False,
+                "error_code": "NOT_A_PLANT_IMAGE",
+                "title": "Not the Correct Pic",
+                "error": validation_error,
+                "details": metrics
+            }), 422
+
+        # Run prediction only on verified plant images
         try:
             class_name, confidence = predict_disease(filepath)
         except FileNotFoundError as e:

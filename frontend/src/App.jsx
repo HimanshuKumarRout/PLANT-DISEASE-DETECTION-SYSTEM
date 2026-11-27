@@ -82,6 +82,7 @@ export default function App() {
 
     setIsLoading(true);
     setError(null);
+    setResult(null);
 
     const formData = new FormData();
     formData.append('file', selectedFile);
@@ -95,20 +96,28 @@ export default function App() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(
+        const requestErr = new Error(
           (data && data.error) || `Backend responded with error code ${response.status}`
         );
+        requestErr.title = (data && data.title) || 'Diagnosis Failed';
+        requestErr.code = (data && data.error_code) || null;
+        throw requestErr;
       }
 
       if (data && data.success) {
         setResult(data);
       } else {
-        throw new Error((data && data.error) || 'Analysis could not be concluded.');
+        const logicErr = new Error((data && data.error) || 'Analysis could not be concluded.');
+        logicErr.title = (data && data.title) || 'Diagnosis Failed';
+        logicErr.code = (data && data.error_code) || null;
+        throw logicErr;
       }
     } catch (err) {
       console.error('Diagnostic error:', err);
+      setResult(null);
       setError({
-        title: 'Diagnosis Failed',
+        title: err.title || 'Diagnosis Failed',
+        code: err.code || null,
         message: err.message || 'Unable to establish connection with BioShield backend.'
       });
     } finally {

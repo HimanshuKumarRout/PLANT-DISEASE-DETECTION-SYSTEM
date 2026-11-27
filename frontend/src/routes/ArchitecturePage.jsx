@@ -1,5 +1,5 @@
 import React from 'react';
-import { ModelArchitecture } from '../components';
+import ModelArchitecture from '../components/views/ModelArchitecture';
 
 /**
  * ArchitecturePage Route Component (/architecture)

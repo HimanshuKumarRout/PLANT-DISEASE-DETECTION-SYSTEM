@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Sprout, AlertCircle, ShieldCheck, Stethoscope, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { EncyclopediaSkeleton } from '../common/SkeletonLoader';
 
 const FALLBACK_DISEASES = {
   "Apple___Black_rot": {
@@ -86,19 +87,30 @@ const FALLBACK_DISEASES = {
 
 export default function DiseaseEncyclopedia({ apiBase = '' }) {
   const [diseases, setDiseases] = useState(FALLBACK_DISEASES);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCrop, setSelectedCrop] = useState('all');
   const [expandedKey, setExpandedKey] = useState(null);
 
   useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+
     fetch(`${apiBase}/api/diseases`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data && data.diseases) {
+        if (isMounted && data && data.diseases) {
           setDiseases(data.diseases);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [apiBase]);
 
   const toggleExpand = (key) => {
@@ -169,83 +181,103 @@ export default function DiseaseEncyclopedia({ apiBase = '' }) {
         ))}
       </div>
 
-      {/* Cards Grid */}
-      <div className="encyclopedia-cards-grid">
-        {filtered.map(([key, info]) => {
-          const isHealthy = info.disease_name.toLowerCase() === 'healthy';
-          const isExpanded = expandedKey === key;
+      {/* Cards Grid or Skeleton Loader */}
+      {isLoading ? (
+        <EncyclopediaSkeleton count={6} />
+      ) : filtered.length === 0 ? (
+        <div className="glass-panel" style={{ textAlign: 'center', padding: '40px 24px' }}>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+            No matching crop diseases found for "{searchQuery}".
+          </p>
+          <button
+            type="button"
+            className="btn-secondary-action"
+            onClick={() => {
+              setSearchQuery('');
+              setSelectedCrop('all');
+            }}
+          >
+            Reset Filters
+          </button>
+        </div>
+      ) : (
+        <div className="encyclopedia-cards-grid">
+          {filtered.map(([key, info]) => {
+            const isHealthy = info.disease_name.toLowerCase() === 'healthy';
+            const isExpanded = expandedKey === key;
 
-          return (
-            <div key={key} className="disease-info-card">
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            return (
+              <div key={key} className="disease-info-card">
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <div>
+                    <span className="crop-name-pill">{info.plant_name}</span>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '2px' }}>
+                      {info.disease_name}
+                    </h3>
+                  </div>
+
+                  <span className={`severity-pill ${isHealthy ? 'healthy' : 'critical'}`} style={{ padding: '4px 10px', fontSize: '0.7rem' }}>
+                    {isHealthy ? 'Healthy' : 'Pathogen'}
+                  </span>
+                </div>
+
+                {/* Primary Symptom Preview */}
                 <div>
-                  <span className="crop-name-pill">{info.plant_name}</span>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '2px' }}>
-                    {info.disease_name}
-                  </h3>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                    Primary Indicators
+                  </span>
+                  <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.5 }}>
+                    {info.symptoms && info.symptoms[0]}
+                  </p>
                 </div>
 
-                <span className={`severity-pill ${isHealthy ? 'healthy' : 'critical'}`} style={{ padding: '4px 10px', fontSize: '0.7rem' }}>
-                  {isHealthy ? 'Healthy' : 'Pathogen'}
-                </span>
+                {/* Expandable Section */}
+                {isExpanded && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)', animation: 'tab-switch 0.3s ease' }}>
+                    <div>
+                      <strong style={{ fontSize: '0.8rem', color: 'var(--primary-light)', display: 'block', marginBottom: '4px' }}>
+                        Causal Agents:
+                      </strong>
+                      <ul style={{ paddingLeft: '18px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                        {(info.causes || []).map((c, i) => <li key={i}>{c}</li>)}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <strong style={{ fontSize: '0.8rem', color: 'var(--primary-light)', display: 'block', marginBottom: '4px' }}>
+                        Recommended Agronomic Treatment:
+                      </strong>
+                      <ul style={{ paddingLeft: '18px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                        {(info.treatment || []).map((t, i) => <li key={i}>{t}</li>)}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <strong style={{ fontSize: '0.8rem', color: 'var(--primary-light)', display: 'block', marginBottom: '4px' }}>
+                        Prevention Protocol:
+                      </strong>
+                      <ul style={{ paddingLeft: '18px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                        {(info.prevention || []).map((p, i) => <li key={i}>{p}</li>)}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                {/* Toggle Details Button */}
+                <button
+                  type="button"
+                  className="btn-secondary-action"
+                  style={{ width: '100%', justifyContent: 'center', marginTop: 'auto' }}
+                  onClick={() => toggleExpand(key)}
+                >
+                  <span>{isExpanded ? 'Hide Details' : 'View Full Pathology'}</span>
+                  {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </button>
               </div>
-
-              {/* Primary Symptom Preview */}
-              <div>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  Primary Indicators
-                </span>
-                <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.5 }}>
-                  {info.symptoms && info.symptoms[0]}
-                </p>
-              </div>
-
-              {/* Expandable Section */}
-              {isExpanded && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)', animation: 'tab-switch 0.3s ease' }}>
-                  <div>
-                    <strong style={{ fontSize: '0.8rem', color: 'var(--primary-light)', display: 'block', marginBottom: '4px' }}>
-                      Causal Agents:
-                    </strong>
-                    <ul style={{ paddingLeft: '18px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      {(info.causes || []).map((c, i) => <li key={i}>{c}</li>)}
-                    </ul>
-                  </div>
-
-                  <div>
-                    <strong style={{ fontSize: '0.8rem', color: 'var(--primary-light)', display: 'block', marginBottom: '4px' }}>
-                      Recommended Agronomic Treatment:
-                    </strong>
-                    <ul style={{ paddingLeft: '18px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      {(info.treatment || []).map((t, i) => <li key={i}>{t}</li>)}
-                    </ul>
-                  </div>
-
-                  <div>
-                    <strong style={{ fontSize: '0.8rem', color: 'var(--primary-light)', display: 'block', marginBottom: '4px' }}>
-                      Prevention Protocol:
-                    </strong>
-                    <ul style={{ paddingLeft: '18px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      {(info.prevention || []).map((p, i) => <li key={i}>{p}</li>)}
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {/* Toggle Details Button */}
-              <button
-                type="button"
-                className="btn-secondary-action"
-                style={{ width: '100%', justifyContent: 'center', marginTop: 'auto' }}
-                onClick={() => toggleExpand(key)}
-              >
-                <span>{isExpanded ? 'Hide Details' : 'View Full Pathology'}</span>
-                {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-              </button>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -85,10 +85,16 @@ export default function UploadZone({
         />
 
         {previewUrl ? (
-          <div className="uploaded-preview-box">
+          <div className={`uploaded-preview-box ${error?.code === 'NOT_A_PLANT_IMAGE' ? 'invalid-preview' : ''}`}>
             <img src={previewUrl} alt="Selected leaf specimen" />
-            <div className="preview-badge-overlay">
-              <span>{selectedFile ? `${(selectedFile.size / 1024).toFixed(0)} KB • Ready` : 'Sample'}</span>
+            <div className={`preview-badge-overlay ${error?.code === 'NOT_A_PLANT_IMAGE' ? 'invalid' : ''}`}>
+              <span>
+                {error?.code === 'NOT_A_PLANT_IMAGE'
+                  ? 'Not a Plant Image'
+                  : selectedFile
+                  ? `${(selectedFile.size / 1024).toFixed(0)} KB • Ready`
+                  : 'Sample'}
+              </span>
             </div>
             <button
               type="button"
